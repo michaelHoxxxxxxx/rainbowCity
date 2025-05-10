@@ -36,7 +36,7 @@ function AiChat() {
     
     try {
       // 使用简单的fetch请求
-      const response = await fetch('http://localhost:5000/api/chat/simple', {
+      const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,17 +44,34 @@ function AiChat() {
         body: JSON.stringify({ messages: [...messages, userMessage] }),
       });
       
-      setDebug(prev => ({ ...prev, responseStatus: response.status, responseOk: response.ok }));
+      // 记录响应状态
+      setDebug(prev => ({ 
+        ...prev, 
+        responseStatus: response.status, 
+        responseOk: response.ok,
+        responseHeaders: Object.fromEntries([...response.headers.entries()]),
+      }));
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      
-      // 添加助手消息
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
       setDebug(prev => ({ ...prev, responseData: data }));
+      
+      // 检查响应格式并提取内容
+      if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+        // 添加助手消息
+        const assistantMessage = {
+          role: 'assistant',
+          content: data.choices[0].message.content
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error('未知响应格式');
+      }
       
     } catch (err) {
       console.error('Chat error:', err);
