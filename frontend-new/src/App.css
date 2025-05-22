@@ -1,14 +1,14 @@
 /* 基础变量 */
 :root {
-  --primary-color: #6e45e2;
-  --secondary-color: #88d3ce;
-  --bg-dark: #121212;
-  --bg-card: #1a1a1a;
-  --text-primary: #e0e0e0;
-  --text-secondary: #aaaaaa;
-  --border-color: #333;
-  --success-color: #2ecc71;
-  --error-color: #e74c3c;
+  --primary-color: #a18cd1;
+  --secondary-color: #fbc2eb;
+  --bg-dark: #1a1a2e;
+  --bg-card: #16213e;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --success-color: #4caf50;
+  --error-color: #ff6b6b;
   --gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
 }
 

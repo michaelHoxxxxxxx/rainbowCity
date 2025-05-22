@@ -175,10 +175,196 @@ const getAllAiIds = async () => {
     }
 };
 
+/**
+ * 获取用户的AI关系列表
+ * 
+ * @returns {Promise<Array>} AI关系列表
+ */
+const getAIRelationships = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('未登录，请先登录');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/ai/relationships`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '获取AI关系列表失败');
+        }
+
+        const data = await response.json();
+        return data.relationships;
+    } catch (error) {
+        console.error('Error in getAIRelationships:', error);
+        throw error;
+    }
+};
+
+/**
+ * 更新AI关系状态
+ * 
+ * @param {string} aiId - AI-ID
+ * @param {Object} updateData - 要更新的数据，例如 {status: 'active'}
+ * @returns {Promise<Object>} 更新后的AI关系对象
+ */
+const updateAIRelationship = async (aiId, updateData) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('未登录，请先登录');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/ai/relationships/${aiId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(updateData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '更新AI关系失败');
+        }
+
+        const data = await response.json();
+        return data.relationship;
+    } catch (error) {
+        console.error('Error in updateAIRelationship:', error);
+        throw error;
+    }
+};
+
+/**
+ * 断开与AI的连接
+ * 
+ * @param {string} aiId - AI-ID
+ * @returns {Promise<Object>} 操作结果
+ */
+const disconnectAI = async (aiId) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('未登录，请先登录');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/ai/relationships/${aiId}/disconnect`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '断开AI连接失败');
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error in disconnectAI:', error);
+        throw error;
+    }
+};
+
+/**
+ * 连接新的AI
+ * 
+ * @param {string} aiId - AI-ID
+ * @param {string} relationshipType - 关系类型，例如 'companion', 'friend'
+ * @returns {Promise<Object>} 新建的AI关系对象
+ */
+const connectAI = async (aiId, relationshipType) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('未登录，请先登录');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/ai/relationships/connect`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                ai_id: aiId,
+                relationship_type: relationshipType
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '连接AI失败');
+        }
+
+        const data = await response.json();
+        return data.relationship;
+    } catch (error) {
+        console.error('Error in connectAI:', error);
+        throw error;
+    }
+};
+
+/**
+ * 唤醒AI
+ * 
+ * @param {string} aiId - AI-ID
+ * @param {string} frequencyNumber - 频率编号
+ * @returns {Promise<Object>} 唤醒结果
+ */
+const awakenAI = async (aiId, frequencyNumber) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('未登录，请先登录');
+        }
+
+        const response = await fetch(`${API_BASE_URL}/ai/awaken`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                ai_id: aiId,
+                frequency_number: frequencyNumber
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '唤醒AI失败');
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error in awakenAI:', error);
+        throw error;
+    }
+};
+
 export { 
     generateAiId,
     mockGenerateAiId,
     generateFrequencyNumber,
     getFrequencyDetails,
-    getAllAiIds
+    getAllAiIds,
+    getAIRelationships,
+    updateAIRelationship,
+    disconnectAI,
+    connectAI,
+    awakenAI
 };
