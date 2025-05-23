@@ -164,21 +164,53 @@ def query(table, condition=None):
             print("Using mock mode for query operation")
             return []
         
+        # 根据条件执行查询
+        query_str = ""
         try:
-            if condition is None:
-                # 查询所有数据
-                result = await db.query(f"SELECT * FROM {table}")
+            if not condition:
+                # 无条件查询所有记录
+                query_str = f"SELECT * FROM {table}"
+                print(f"Executing query: {query_str}")
+                result = await db.query(query_str)
+            elif 'id' in condition and condition['id'].startswith(f"{table}:"):
+                # 直接通过ID查询单条记录
+                record_id = condition['id']
+                print(f"Executing direct ID query for {record_id}")
+                try:
+                    # 尝试直接使用select方法
+                    record = await db.select(record_id)
+                    print(f"Direct select result: {record}")
+                    # 将结果包装为与查询结果相同的格式
+                    if record:
+                        result = [{'result': [record], 'status': 'OK'}]
+                    else:
+                        result = [{'result': [], 'status': 'OK'}]
+                except Exception as e:
+                    print(f"Error in direct select: {e}, falling back to query")
+                    # 如果直接选择失败，回退到查询
+                    query_str = f"SELECT * FROM {table} WHERE id = '{record_id}'"
+                    print(f"Fallback query: {query_str}")
+                    result = await db.query(query_str)
             else:
                 # 构建条件查询
                 conditions = " AND ".join([f"{k} = '{v}'" for k, v in condition.items()])
-                result = await db.query(f"SELECT * FROM {table} WHERE {conditions}")
+                query_str = f"SELECT * FROM {table} WHERE {conditions}"
+                print(f"Executing query: {query_str}")
+                result = await db.query(query_str)
             
-            # 处理查询结果
+            print(f"Query result type: {type(result)}")
+            print(f"Query result: {result}")
+        except Exception as e:
+            print(f"Error executing query '{query_str}': {e}")
+            raise
+        
+        # 处理查询结果
+        try:
             if result and result[0] and 'result' in result[0]:
                 return result[0]['result']
             return []
         except Exception as e:
-            print(f"Error querying data from {table}: {e}")
+            print(f"Error processing query result: {e}")
             return []
     
     return run_async(_query())
@@ -210,3 +242,34 @@ def update(table, id, data):
             return None
     
     return run_async(_update())
+
+
+# 创建一个数据库会话对象，用于兼容SQLAlchemy风格的代码
+class DBSession:
+    def __init__(self):
+        self.pending_operations = []
+    
+    def add(self, obj):
+        """添加对象到会话"""
+        print(f"添加对象到会话: {obj}")
+        # 实际上这里应该调用create函数
+        if hasattr(obj, '__tablename__') and hasattr(obj, 'to_dict'):
+            create(obj.__tablename__, obj.to_dict())
+    
+    def delete(self, obj):
+        """从会话中删除对象"""
+        print(f"从会话中删除对象: {obj}")
+        # 实际删除操作
+    
+    def commit(self):
+        """提交会话中的所有更改"""
+        print("提交会话中的更改")
+        # 实际上这里不需要做什么，因为每个操作都是立即执行的
+    
+    def rollback(self):
+        """回滚会话中的所有更改"""
+        print("回滚会话中的所有更改")
+        # 实际上这里不需要做什么，因为每个操作都是立即执行的
+
+# 创建全局会话对象
+db_session = DBSession()

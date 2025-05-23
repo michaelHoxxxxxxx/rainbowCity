@@ -131,11 +131,7 @@ function AiChat() {
           </div>
         )}
         
-        {/* 调试信息区域 */}
-        <div className="debug-info" style={{ fontSize: '12px', color: '#999', margin: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px', background: '#f9f9f9' }}>
-          <h4>调试信息</h4>
-          <pre>{JSON.stringify(debug, null, 2)}</pre>
-        </div>
+        {/* 调试信息区域已移除 */}
         
         <div ref={messagesEndRef} />
       </div>

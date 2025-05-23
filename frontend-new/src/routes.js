@@ -23,6 +23,9 @@ import VIPPlans from './components/vip/VIPPlans';
 // AI关系组件
 import AIRelationships from './components/ai/AIRelationships';
 
+// AI聊天组件
+import AiChat from './components/AiChat';
+
 // 认证服务
 import { isAuthenticated } from './services/auth_service';
 
@@ -74,6 +77,7 @@ const AppRoutes = () => {
           <Route path="profile" element={<UserProfile />} />
           <Route path="vip" element={<VIPPlans />} />
           <Route path="ai-relationships" element={<AIRelationships />} />
+          <Route path="ai-chat" element={<AiChat />} />
         </Route>
         
         {/* 404路由 */}

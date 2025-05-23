@@ -156,6 +156,15 @@ const MainLayout = () => {
             AI关系管理
           </Link>
           
+          <Link 
+            to="/ai-chat" 
+            className={`nav-item ${isActive('/ai-chat') ? 'active' : ''}`}
+            onClick={closeMenu}
+          >
+            <i className="nav-icon chat-icon"></i>
+            AI聊天
+          </Link>
+          
           <div className="nav-divider"></div>
           
           <Link 
