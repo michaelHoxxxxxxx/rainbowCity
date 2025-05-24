@@ -74,7 +74,7 @@ Rainbow City（彩虹城）是一个创新的AI交互平台，集成了一体七
    
    # 安装后端依赖
    cd ../backend
-   npm install
+   python install requirements.txt
    ```
 
 3. 配置环境变量
@@ -85,7 +85,7 @@ Rainbow City（彩虹城）是一个创新的AI交互平台，集成了一体七
    ```bash
    # 启动后端服务
    cd backend
-   npm start
+   python run.py
    
    # 在另一个终端启动前端服务
    cd frontend-new
