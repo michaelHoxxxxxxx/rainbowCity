@@ -65,8 +65,12 @@ const AppRoutes = () => {
           </GuestRoute>
         } />
         
-        {/* 主应用路由 */}
-        <Route path="/" element={
+        {/* 公开路由 - 不需要登录 */}
+        <Route path="/" element={<Home />} />
+        <Route path="/ai-chat" element={<AiChat />} />
+        
+        {/* 需要登录的路由 */}
+        <Route path="/dashboard" element={
           <ProtectedRoute>
             <MainLayout />
           </ProtectedRoute>
@@ -77,7 +81,6 @@ const AppRoutes = () => {
           <Route path="profile" element={<UserProfile />} />
           <Route path="vip" element={<VIPPlans />} />
           <Route path="ai-relationships" element={<AIRelationships />} />
-          <Route path="ai-chat" element={<AiChat />} />
         </Route>
         
         {/* 404路由 */}
