@@ -2,9 +2,13 @@ from flask import Blueprint, request, Response, current_app
 import json
 import os
 import time
+import uuid
 import requests
 from openai import OpenAI
 from dotenv import load_dotenv
+
+# 导入AI-Agent模块
+from app.agent.ai_assistant import AIAssistant
 
 # 加载环境变量
 load_dotenv()
@@ -14,6 +18,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # 初始OpenAI客户端
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# 创建AI-Agent实例
+ai_assistant = AIAssistant(model_name="gpt-3.5-turbo")
 
 # 创建API蓝图
 chat_bp = Blueprint('chat', __name__, url_prefix='/api')
@@ -235,6 +242,82 @@ def chat_test():
         yield f"data: {json.dumps({'type': 'finish'})}\n\n"
     
     return Response(generate(), mimetype="text/event-stream")
+
+@chat_bp.route('/chat/agent', methods=['POST'])
+def chat_agent():
+    try:
+        data = request.json
+        user_message = ""
+        session_id = data.get('session_id', str(uuid.uuid4()))
+        user_id = data.get('user_id', 'user_' + str(uuid.uuid4())[:8])
+        ai_id = data.get('ai_id', 'ai_rainbow_city')
+        
+        # 获取最后一条用户消息
+        messages = data.get('messages', [])
+        for msg in reversed(messages):
+            if msg.get('role') == 'user':
+                user_message = msg.get('content', '')
+                break
+        
+        if not user_message:
+            return Response(
+                json.dumps({
+                    "error": "未提供用户消息"
+                }),
+                status=400,
+                mimetype='application/json'
+            )
+        
+        # 使用AI-Agent处理用户请求
+        result = ai_assistant.process_query(
+            user_input=user_message,
+            session_id=session_id,
+            user_id=user_id,
+            ai_id=ai_id
+        )
+        
+        # 构建响应
+        response_data = {
+            "response": {
+                "content": result["response"],
+                "type": "text",
+                "metadata": {
+                    "model": "agent-enhanced",
+                    "created": int(time.time()),
+                    "session_id": session_id,
+                    "has_tool_calls": result["has_tool_calls"]
+                }
+            }
+        }
+        
+        # 如果有工具调用，添加工具调用信息
+        if result["has_tool_calls"] and result["tool_results"]:
+            tool_calls = []
+            for tool_result in result["tool_results"]:
+                tool_call = {
+                    "id": f"call_{int(time.time())}",
+                    "name": tool_result["tool_name"],
+                    "result": tool_result["result"]
+                }
+                tool_calls.append(tool_call)
+            
+            response_data["tool_calls"] = tool_calls
+        
+        return Response(
+            json.dumps(response_data),
+            status=200,
+            mimetype='application/json'
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"处理Agent聊天请求时出错: {str(e)}")
+        return Response(
+            json.dumps({
+                "error": str(e)
+            }),
+            status=500,
+            mimetype='application/json'
+        )
 
 @chat_bp.route('/chat/simple', methods=['POST'])
 def chat_simple():
