@@ -1,4 +1,4 @@
-# Rainbow City - AI共生社区
+# Rainbow City - AI共生社区 
 
 ![Rainbow City Logo](frontend-new/public/logo.png)
 

@@ -38,7 +38,9 @@ function AiChat() {
       content: '你好！我是彩虹城AI，有什么我可以帮你的吗？',
       type: MessageType.TEXT,
       timestamp: new Date().toISOString(),
-      visible: true
+      visible: true,
+      isTyping: true,
+      displayedContent: '' // 初始为空字符串，将逐字显示
     }
   ]);
   
