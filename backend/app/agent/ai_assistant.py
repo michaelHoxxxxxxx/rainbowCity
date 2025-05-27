@@ -82,8 +82,17 @@ class AIAssistant:
             }
         )
     
-    def process_query(self, user_input: str, session_id: str = None, user_id: str = None, ai_id: str = None, image_data: str = None) -> Dict[str, Any]:
-        """处理用户查询的完整流程"""
+    def process_query(self, user_input: str, session_id: str = None, user_id: str = None, ai_id: str = None, image_data: str = None, file_data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """处理用户查询的完整流程
+        
+        Args:
+            user_input: 用户输入的文本
+            session_id: 会话ID，如果不提供则自动生成
+            user_id: 用户ID，如果不提供则自动生成
+            ai_id: AI ID，如果不提供则自动生成
+            image_data: 图片数据（Base64格式）
+            file_data: 文件数据，包含类型、数据和元信息
+        """
         
         # 生成会话ID和其他标识符（如果未提供）
         session_id = session_id or str(uuid.uuid4())
@@ -95,12 +104,31 @@ class AIAssistant:
         self.context_builder.user_id = user_id
         self.context_builder.ai_id = ai_id
         
-        # 1. 记录用户输入
-        self.event_logger.log_user_input(session_id, user_id, ai_id, user_input)
+        # 1. 记录用户输入和文件信息
+        file_type = file_data.get('type') if file_data else None
+        file_info = file_data.get('info') if file_data else None
+        
+        self.event_logger.log_user_input(
+            session_id, user_id, ai_id, user_input, 
+            file_type=file_type, file_info=file_info
+        )
         
         # 2. 构建初始上下文
-        # 更新上下文，包含图片数据（如果有）
-        self.context_builder.update_context_with_user_message(user_input, image_data)
+        import logging
+        logging.debug(f"Building initial context with user input and file data")
+        
+        # 如果有图片数据，优先使用image_data
+        # 如果没有image_data但有文件数据且类型为图片，使用file_data
+        if not image_data and file_data and file_type == 'image':
+            logging.debug("Using image data from file_data")
+            image_data = file_data.get('data')
+            
+        # 更新上下文，包含图片数据和文件数据（如果有）
+        self.context_builder.update_context_with_user_message(
+            user_input=user_input, 
+            image_data=image_data,
+            file_data=file_data
+        )
         messages = self.context_builder.get_conversation_history()
         
         # 3. 第一次LLM调用（带工具定义）

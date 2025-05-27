@@ -8,8 +8,11 @@ const MessageType = {
   TEXT: 'text',
   IMAGE: 'image',
   AUDIO: 'audio',
+  VIDEO: 'video',
+  DOCUMENT: 'document',
   TOOL_OUTPUT: 'tool_output',
-  SYSTEM: 'system'
+  SYSTEM: 'system',
+  MIXED: 'mixed'  // 混合类型，包含文本和其他内容
 };
 
 // 发送者角色枚举
@@ -44,9 +47,13 @@ function AiChat() {
     }
   ]);
   
+  // 是否使用Agent增强版聊天
+  const [useAgentChat, setUseAgentChat] = useState(true);
+  
   // 输入状态
   const [textInput, setTextInput] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [savedAttachments, setSavedAttachments] = useState([]); // 已保存的附件，即使发送后仍然可用
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   
@@ -92,6 +99,7 @@ function AiChat() {
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const audioInputRef = useRef(null);
+  const videoInputRef = useRef(null);
   const documentInputRef = useRef(null);
   
   // 上传按钮悬停状态
@@ -122,15 +130,22 @@ function AiChat() {
       filteredFiles = files.filter(file => file.type.startsWith('image/'));
     } else if (fileType === 'audio') {
       filteredFiles = files.filter(file => file.type.startsWith('audio/'));
+    } else if (fileType === 'video') {
+      filteredFiles = files.filter(file => file.type.startsWith('video/'));
     } else if (fileType === 'document') {
-      filteredFiles = files.filter(file => !file.type.startsWith('image/') && !file.type.startsWith('audio/'));
+      filteredFiles = files.filter(file => 
+        !file.type.startsWith('image/') && 
+        !file.type.startsWith('audio/') && 
+        !file.type.startsWith('video/'));
     }
     
     const newAttachments = filteredFiles.map(file => ({
       id: generateUUID(),
       file,
       type: file.type.startsWith('image/') ? MessageType.IMAGE : 
-            file.type.startsWith('audio/') ? MessageType.AUDIO : MessageType.TEXT,
+            file.type.startsWith('audio/') ? MessageType.AUDIO : 
+            file.type.startsWith('video/') ? MessageType.VIDEO : 
+            MessageType.DOCUMENT,
       name: file.name,
       size: file.size,
       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
@@ -142,6 +157,7 @@ function AiChat() {
   // 处理不同类型的文件上传
   const handleImageUpload = (e) => handleFileUpload(e, 'image');
   const handleAudioUpload = (e) => handleFileUpload(e, 'audio');
+  const handleVideoUpload = (e) => handleFileUpload(e, 'video');
   const handleDocumentUpload = (e) => handleFileUpload(e, 'document');
   
   // 删除附件
@@ -150,17 +166,29 @@ function AiChat() {
   };
 
   // 创建新的消息对象
-  const createMessage = (role, content, type = MessageType.TEXT, additionalData = {}) => ({
-    id: generateUUID(),
-    role,
-    content,
-    type,
-    timestamp: new Date().toISOString(),
-    visible: true,
-    isTyping: role === SenderRole.ASSISTANT, // 助手消息默认启用打字机效果
-    displayedContent: role === SenderRole.ASSISTANT ? '' : content, // 初始显示内容为空
-    ...additionalData
-  });
+  const createMessage = (role, content, type = MessageType.TEXT, additionalData = {}) => {
+    // 创建基本消息对象
+    const message = {
+      id: generateUUID(),
+      role,
+      content,
+      type,
+      timestamp: new Date().toISOString(),
+      visible: true,
+      isTyping: role === SenderRole.ASSISTANT, // 助手消息默认启用打字机效果
+      displayedContent: role === SenderRole.ASSISTANT ? '' : content, // 初始显示内容为空
+    };
+    
+    // 如果是混合消息，确保数据结构正确
+    if (type === MessageType.MIXED && additionalData.attachment) {
+      message.data = {
+        attachment: additionalData.attachment
+      };
+    }
+    
+    // 合并其他附加数据
+    return { ...message, ...additionalData };
+  };
 
   // 创建新聊天
   const handleCreateNewChat = () => {
@@ -224,19 +252,48 @@ function AiChat() {
     // 准备用户消息
     const userMessages = [];
     
-    // 处理文本消息
-    if (textInput.trim()) {
-      userMessages.push(createMessage(SenderRole.USER, textInput.trim()));
+    // 处理用户消息，将文本和图片合并为一个消息
+    let messageContent = textInput.trim();
+    let messageType = MessageType.TEXT;
+    let messageData = {};
+    let imageAttachment = null;
+    
+    // 检查是否有图片附件
+    if (attachments.length > 0) {
+      for (const attachment of attachments) {
+        if (attachment.type === MessageType.IMAGE) {
+          imageAttachment = attachment;
+          messageType = MessageType.MIXED; // 混合类型（文本+图片）
+          messageData = { 
+            text: messageContent,
+            attachment: attachment 
+          };
+          break;
+        }
+      }
     }
     
-    // 处理附件
-    for (const attachment of attachments) {
+    // 创建用户消息
+    if (messageType === MessageType.MIXED) {
+      // 混合消息（文本+图片）
       userMessages.push(createMessage(
-        SenderRole.USER, 
-        attachment.preview || attachment.name, 
-        attachment.type, 
-        { attachment }
+        SenderRole.USER,
+        messageContent,
+        messageType,
+        messageData
       ));
+    } else if (messageContent) {
+      // 纯文本消息
+      userMessages.push(createMessage(SenderRole.USER, messageContent));
+    }
+    
+    // 保存图片附件到永久存储
+    if (imageAttachment) {
+      // 检查是否已经保存过该图片
+      const alreadySaved = savedAttachments.some(saved => saved.id === imageAttachment.id);
+      if (!alreadySaved) {
+        setSavedAttachments(prev => [...prev, imageAttachment]);
+      }
     }
     
     // 添加用户消息到状态
@@ -257,19 +314,69 @@ function AiChat() {
           type: msg.type
         }));
       
-      // 调用后端 API
-      const response = await fetch('http://localhost:5000/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // 添加认证令牌
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          turn_id: newTurnId,
-          messages: visibleMessages
-        }),
-      });
+      // 决定使用哪个聊天端点
+      const chatEndpoint = useAgentChat ? '/api/chat/agent' : '/api/chat';
+      
+      let response;
+      
+      // 如果有文件附件且使用Agent模式，使用多部分表单提交
+      if (attachments.length > 0 && useAgentChat) {
+        // 获取第一个附件（目前每次只处理一个附件）
+        const attachment = attachments[0];
+        const formData = new FormData();
+        formData.append('user_input', textInput.trim());
+        formData.append('session_id', sessionId);
+        formData.append('user_id', localStorage.getItem('userId') || 'anonymous');
+        formData.append('ai_id', 'ai_rainbow_city');
+        
+        // 根据文件类型选择不同的字段名
+        let fieldName = 'file';
+        if (attachment.type === MessageType.IMAGE) fieldName = 'image';
+        if (attachment.type === MessageType.AUDIO) fieldName = 'audio';
+        if (attachment.type === MessageType.VIDEO) fieldName = 'video';
+        if (attachment.type === MessageType.DOCUMENT) fieldName = 'document';
+        
+        // 如果有原始文件，使用原始文件
+        if (attachment.file) {
+          formData.append(fieldName, attachment.file);
+        } 
+        // 如果有预览URL，尝试转换为Blob
+        else if (attachment.preview && attachment.preview.startsWith('data:')) {
+          try {
+            const res = await fetch(attachment.preview);
+            const blob = await res.blob();
+            formData.append(fieldName, blob, attachment.name || 'file');
+          } catch (error) {
+            console.error('Error converting preview to blob:', error);
+          }
+        }
+        
+        // 使用新的统一文件处理端点
+        response = await fetch('/api/agent/chat/with_file', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}` // 添加认证令牌
+          },
+          body: formData
+        });
+      } 
+      // 否则使用标准JSON请求
+      else {
+        response = await fetch(chatEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}` // 添加认证令牌
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            turn_id: newTurnId,
+            messages: visibleMessages,
+            user_id: localStorage.getItem('userId') || 'anonymous',
+            ai_id: 'ai_rainbow_city'
+          }),
+        });
+      }
       
       if (!response.ok) {
         throw new Error(`服务器错误: ${response.status}`);
@@ -326,6 +433,11 @@ function AiChat() {
       );
       
       setMessages(prev => [...prev, errorMessage]);
+      
+      // 如果发送失败，将最近使用的图片附件添加回附件列表
+      if (imageAttachment) {
+        setAttachments([imageAttachment]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -405,10 +517,35 @@ function AiChat() {
     const contentToShow = message.isTyping ? message.displayedContent : message.content;
     
     switch (message.type) {
+      case MessageType.MIXED:
+        // 混合消息（文本+图片）
+        return (
+          <div className="message-mixed">
+            {/* 先显示文本部分 */}
+            {contentToShow && contentToShow.trim() !== '' && (
+              <div className="message-text">
+                {contentToShow.split('\n').map((line, i) => (
+                  <p key={i}>{line || ' '}</p>
+                ))}
+              </div>
+            )}
+            
+            {/* 然后显示图片部分 */}
+            {message.data && message.data.attachment && (
+              <div className="message-image-container">
+                <img 
+                  src={message.data.attachment.preview || message.data.attachment.url || message.data.attachment.content} 
+                  alt="图片附件" 
+                  className="mixed-message-image"
+                />
+              </div>
+            )}
+          </div>
+        );
       case MessageType.IMAGE:
         return (
           <div className="message-image">
-            <img src={message.content} alt="图片附件" />
+            <img src={message.content} alt="图片附件" className="standalone-image" />
             {message.attachment && <div className="image-caption">{message.attachment.name}</div>}
           </div>
         );
@@ -427,9 +564,9 @@ function AiChat() {
             <div className="tool-content">{contentToShow}</div>
             {message.tool_calls && (
               <div className="tool-actions">
-                {message.tool_calls.map(tool => (
+                {message.tool_calls.map((tool, index) => (
                   <button 
-                    key={tool.id}
+                    key={`${message.id}_${tool.name}_${index}`}
                     className="tool-action-button"
                     onClick={() => handleToolAction(tool.id, 'navigate')}
                   >
@@ -445,7 +582,6 @@ function AiChat() {
         return (
           <div className="message-content">
             {contentToShow}
-            {message.isTyping && <span className="typing-cursor">|</span>}
           </div>
         );
     }
@@ -460,7 +596,9 @@ function AiChat() {
         {attachments.map(attachment => (
           <div key={attachment.id} className="attachment-item">
             {attachment.type === MessageType.IMAGE && (
-              <img src={attachment.preview} alt={attachment.name} className="attachment-preview" />
+              <div className="attachment-image-wrapper">
+                <img src={attachment.preview} alt={attachment.name} className="attachment-preview" />
+              </div>
             )}
             {attachment.type === MessageType.AUDIO && (
               <div className="audio-attachment-preview">
@@ -469,6 +607,7 @@ function AiChat() {
               </div>
             )}
             <button 
+              type="button" 
               className="remove-attachment" 
               onClick={() => removeAttachment(attachment.id)}
             >
@@ -476,6 +615,44 @@ function AiChat() {
             </button>
           </div>
         ))}
+      </div>
+    );
+  };
+
+  // 渲染已保存的图片
+  const renderSavedImages = () => {
+    if (savedAttachments.length === 0) return null;
+    
+    return (
+      <div className="saved-images-container">
+        <h4 className="saved-images-title">最近上传的图片</h4>
+        <div className="saved-images-grid">
+          {savedAttachments.map(attachment => (
+            <div key={attachment.id} className="saved-image-item">
+              <img 
+                src={attachment.preview} 
+                alt={attachment.name} 
+                className="saved-image-preview" 
+                onClick={() => {
+                  // 点击已保存的图片时，将其添加到当前附件中
+                  if (!attachments.some(a => a.id === attachment.id)) {
+                    setAttachments(prev => [...prev, attachment]);
+                  }
+                }}
+              />
+              <button 
+                type="button" 
+                className="remove-saved-image" 
+                onClick={() => {
+                  // 从已保存的图片中移除
+                  setSavedAttachments(prev => prev.filter(a => a.id !== attachment.id));
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
@@ -493,34 +670,41 @@ function AiChat() {
           .map((message) => (
             <div 
               key={message.id} 
-              className={`message ${message.role === SenderRole.ASSISTANT ? 'assistant' : 
-                         message.role === SenderRole.USER ? 'user' : 'system'} 
-                         ${message.error ? 'error' : ''}`}
+              className={`message-wrapper ${message.role === SenderRole.ASSISTANT ? 'assistant-wrapper' : 
+                         message.role === SenderRole.USER ? 'user-wrapper' : 'system-wrapper'}`}
             >
-              <div className="message-header">
-                <div className="message-role">
-                  {message.role === SenderRole.USER ? '你' : 
-                   message.role === SenderRole.ASSISTANT ? '彩虹城AI' : 
-                   '系统'}
+              <div 
+                className={`message ${message.role === SenderRole.ASSISTANT ? 'assistant' : 
+                           message.role === SenderRole.USER ? 'user' : 'system'} 
+                           ${message.error ? 'error' : ''}`}
+              >
+                <div className="message-header">
+                  <div className="message-role">
+                    {message.role === SenderRole.USER ? '你' : 
+                     message.role === SenderRole.ASSISTANT ? '彩虹城AI' : 
+                     '系统'}
+                  </div>
+                  <div className="message-time">
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </div>
                 </div>
-                <div className="message-time">
-                  {new Date(message.timestamp).toLocaleTimeString()}
-                </div>
+                {renderMessageContent(message)}
               </div>
-              {renderMessageContent(message)}
             </div>
         ))}
         
         {isLoading && (
-          <div className="message assistant">
-            <div className="message-header">
-              <div className="message-role">彩虹城AI</div>
-            </div>
-            <div className="thinking">
-              <div className="thinking-dots">
-                <span></span>
-                <span></span>
-                <span></span>
+          <div className="message-wrapper assistant-wrapper">
+            <div className="message assistant">
+              <div className="message-header">
+                <div className="message-role">彩虹城AI</div>
+              </div>
+              <div className="thinking">
+                <div className="thinking-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </div>
             </div>
           </div>
@@ -549,7 +733,20 @@ function AiChat() {
         </div>
       )}
       
+      {renderSavedImages()}
+      
       <form onSubmit={handleSubmit} className="input-form">
+        <div className="chat-settings">
+          <label className="agent-toggle">
+            <input 
+              type="checkbox" 
+              checked={useAgentChat} 
+              onChange={() => setUseAgentChat(!useAgentChat)}
+            />
+            <span className="toggle-label">{useAgentChat ? "AI-Agent模式已启用" : "AI-Agent模式已关闭"}</span>
+          </label>
+        </div>
+        
         {renderAttachmentPreviews()}
         
         <div className="input-controls">
@@ -568,6 +765,7 @@ function AiChat() {
             
             {/* 悬停时显示的上传选项 */}
             <div className={`upload-options ${isUploadHovered ? 'visible' : ''}`}>
+              {/* 图片上传 */}
               <button 
                 type="button" 
                 className="upload-option-button image-upload"
@@ -582,6 +780,7 @@ function AiChat() {
                 </svg>
               </button>
               
+              {/* 音频上传 */}
               <button 
                 type="button" 
                 className="upload-option-button audio-upload"
@@ -597,13 +796,28 @@ function AiChat() {
                 </svg>
               </button>
               
+              {/* 视频上传 */}
+              <button 
+                type="button" 
+                className="upload-option-button video-upload"
+                onClick={() => videoInputRef.current.click()}
+                title="上传视频"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#a18cd1">
+                  <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                </svg>
+              </button>
+              
+              {/* 文档上传 */}
               <button 
                 type="button" 
                 className="upload-option-button document-upload"
                 onClick={() => documentInputRef.current.click()}
-                title="上传文件"
+                title="上传文档"
               >
-                <i className="document-icon"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#a18cd1">
+                  <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -634,6 +848,15 @@ function AiChat() {
             style={{ display: 'none' }}
             multiple
             accept="audio/*"
+          />
+          
+          <input
+            type="file"
+            ref={videoInputRef}
+            onChange={handleVideoUpload}
+            style={{ display: 'none' }}
+            multiple
+            accept="video/*"
           />
           
           <input

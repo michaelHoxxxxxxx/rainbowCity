@@ -34,6 +34,7 @@ def create_app():
     from .routes.vip_routes import vip_bp
     from .routes.agent_routes import agent_bp
     from .routes.image_routes import image_bp
+    from .routes.file_routes import file_bp
     # from .routes.user_routes import user_bp  # 如果有用户路由
 
     app.register_blueprint(ai_bp)
@@ -43,6 +44,7 @@ def create_app():
     app.register_blueprint(vip_bp)
     app.register_blueprint(agent_bp)
     app.register_blueprint(image_bp)
+    app.register_blueprint(file_bp)
     # app.register_blueprint(user_bp)
 
     return app

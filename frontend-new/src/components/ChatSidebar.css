@@ -131,11 +131,16 @@
 
 .search-container {
   position: relative;
+  width: 100%;
+  margin: 10px 0;
+  padding: 0 15px;
+  box-sizing: border-box;
 }
 
 .search-input {
   width: 100%;
-  padding: 10px 15px;
+  height: 40px;
+  padding: 0 15px;
   border-radius: 20px;
   border: 1px solid rgba(42, 42, 61, 0.8);
   background-color: rgba(15, 15, 26, 0.5);
@@ -143,6 +148,10 @@
   font-size: 14px;
   outline: none;
   transition: border-color 0.3s;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .search-input:focus {

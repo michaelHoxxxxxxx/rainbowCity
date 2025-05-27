@@ -640,18 +640,19 @@ body {
 .multimodal-features {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .multimodal-feature {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
+  margin-bottom: 10px;
 }
 
 .multimodal-feature .feature-icon {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
   background-color: var(--bg-tertiary);
   display: flex;
@@ -660,24 +661,35 @@ body {
   flex-shrink: 0;
   position: relative;
   margin: 0;
+  margin-top: 5px;
 }
 
 .text-icon::before {
   content: 'T';
   color: var(--primary-color);
   font-weight: bold;
+  font-size: 24px;
 }
 
 .image-icon::before {
-  content: '🖼️';
+  content: 'I';
+  color: var(--primary-color);
+  font-weight: bold;
+  font-size: 24px;
 }
 
 .audio-icon::before {
-  content: '🔊';
+  content: 'A';
+  color: var(--primary-color);
+  font-weight: bold;
+  font-size: 24px;
 }
 
 .integration-icon::before {
-  content: '🔄';
+  content: 'M';
+  color: var(--primary-color);
+  font-weight: bold;
+  font-size: 24px;
 }
 
 .feature-content h4 {
@@ -735,6 +747,9 @@ body {
 
 .user-message {
   align-self: flex-end;
+  margin-left: auto;
+  text-align: right;
+  flex-direction: row-reverse;
 }
 
 .ai-message {
@@ -765,6 +780,9 @@ body {
   font-size: 0.9rem;
   line-height: 1.4;
   max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
 }
 
 .image-content {
@@ -1328,7 +1346,7 @@ body {
 
 .memory-feature {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
 }
 

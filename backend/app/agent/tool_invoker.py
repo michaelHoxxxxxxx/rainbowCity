@@ -59,11 +59,38 @@ class ToolInvoker:
             }
         )
         
+        self.register_tool(
+            name="process_document",
+            func=process_document,
+            description="处理文档文件",
+            parameters={
+                "document_url": {"type": "string", "description": "文档的URL路径，如果不提供，将尝试使用最近上传的文档", "optional": True},
+                "action": {"type": "string", "description": "要执行的操作，可以是'analyze'(分析内容), 'summarize'(生成摘要), 'extract'(提取信息)", "optional": True}
+            }
+        )
+        
     def register_tool(self, name: str, func: Callable, description: str, parameters: Dict[str, Any]):
         """注册工具函数"""
         self.tools[name] = func
         
         # 添加工具定义（OpenAI格式）
+        # 过滤出必需的参数（不包含optional=True的参数）
+        required_params = []
+        for k, v in parameters.items():
+            if not isinstance(v, dict) or not v.get("optional", False):
+                required_params.append(k)
+        
+        # 创建不包含optional字段的参数副本
+        clean_parameters = {}
+        for k, v in parameters.items():
+            if isinstance(v, dict):
+                param_copy = v.copy()
+                if "optional" in param_copy:
+                    del param_copy["optional"]
+                clean_parameters[k] = param_copy
+            else:
+                clean_parameters[k] = v
+        
         tool_def = {
             "type": "function",
             "function": {
@@ -71,8 +98,8 @@ class ToolInvoker:
                 "description": description,
                 "parameters": {
                     "type": "object",
-                    "properties": parameters,
-                    "required": [k for k in parameters.keys() if k != "optional_param"]
+                    "properties": clean_parameters,
+                    "required": required_params
                 }
             }
         }
@@ -308,3 +335,194 @@ def analyze_image(image_data: str, analysis_type: str = "general") -> str:
             return f"不支持的分析类型: {analysis_type}"
     except Exception as e:
         return f"分析图片时出错: {str(e)}"
+
+def process_document(document_url: str = None, action: str = "analyze") -> str:
+    """文档处理工具
+    
+    Args:
+        document_url: 文档的URL路径，如果不提供，将尝试使用最近上传的文档
+        action: 要执行的操作，可以是'analyze'(分析内容), 'summarize'(生成摘要), 'extract'(提取信息)
+    
+    Returns:
+        文档处理结果的描述
+    """
+    import logging
+    import os
+    
+    logging.debug(f"Processing document: {document_url} with action: {action}")
+    
+    try:
+        # 检查文档URL是否有效
+        if not document_url:
+            # 如果没有提供文档URL，尝试查找最近上传的文档
+            logging.debug("No document URL provided, trying to find the most recent document")
+            # 尝试在不同的上传目录中查找
+            upload_dirs = [
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads', 'document'),
+                os.path.join(os.getcwd(), 'uploads', 'document'),
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'document')
+            ]
+            
+            most_recent_file = None
+            most_recent_time = 0
+            
+            for upload_dir in upload_dirs:
+                if os.path.exists(upload_dir) and os.path.isdir(upload_dir):
+                    logging.debug(f"Checking upload directory: {upload_dir}")
+                    for file in os.listdir(upload_dir):
+                        file_path = os.path.join(upload_dir, file)
+                        if os.path.isfile(file_path):
+                            file_time = os.path.getmtime(file_path)
+                            if file_time > most_recent_time:
+                                most_recent_time = file_time
+                                most_recent_file = file_path
+            
+            if most_recent_file:
+                document_url = most_recent_file
+                logging.debug(f"Found most recent document: {document_url}")
+            else:
+                return "未找到最近上传的文档，请提供文档URL"
+        
+        # 获取文档路径
+        # 如果URL是相对路径，则将其转换为绝对路径
+        if isinstance(document_url, str) and document_url.startswith('/'):
+            # 获取文件名部分
+            filename = os.path.basename(document_url)
+            # 尝试多种可能的基础路径
+            base_dirs = [
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),  # backend/
+                os.getcwd(),  # 当前工作目录
+                os.path.join(os.getcwd(), 'backend')  # 当前工作目录/backend
+            ]
+            
+            # 尝试多种可能的子目录
+            subdirs = [
+                '',  # 直接在基础目录下
+                'uploads/document/',  # 在uploads/document子目录下
+                'uploads/',  # 在uploads子目录下
+                document_url.lstrip('/').rsplit('/', 1)[0] + '/' if '/' in document_url else ''  # 使用URL中的目录结构
+            ]
+            
+            # 生成所有可能的路径组合
+            possible_paths = []
+            for base_dir in base_dirs:
+                for subdir in subdirs:
+                    path = os.path.join(base_dir, subdir, filename)
+                    possible_paths.append(path)
+                    # 同时尝试不带uploads前缀的路径
+                    if 'uploads/' in subdir:
+                        path2 = os.path.join(base_dir, subdir.replace('uploads/', ''), filename)
+                        possible_paths.append(path2)
+            
+            # 添加原始路径转换
+            for base_dir in base_dirs:
+                possible_paths.append(os.path.join(base_dir, document_url.lstrip('/')))
+            
+            # 尝试所有可能的路径
+            document_path = None
+            for path in possible_paths:
+                if os.path.exists(path) and os.path.isfile(path):
+                    document_path = path
+                    logging.debug(f"Found document at path: {document_path}")
+                    break
+                    
+            if not document_path:
+                document_path = document_url  # 如果找不到，使用原始URL作为备选
+        else:
+            document_path = document_url  # 如果不是以/开头的路径，直接使用
+            
+        # 如果文件不存在，尝试其他可能的路径
+        if not os.path.exists(document_path):
+            # 尝试在不同的目录下查找文件
+            possible_paths = [
+                # 原始路径
+                document_path,
+                # 尝试使用项目根目录下的uploads目录
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads', document_url.lstrip('/')),
+                # 尝试使用当前工作目录
+                os.path.join(os.getcwd(), document_url.lstrip('/')),
+                # 尝试使用当前工作目录下的uploads目录
+                os.path.join(os.getcwd(), 'uploads', document_url.lstrip('/')),
+                # 尝试使用backend目录下的uploads目录
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', document_url.lstrip('/'))
+            ]
+            
+            # 尝试所有可能的路径
+            for path in possible_paths:
+                logging.debug(f"Trying path: {path}")
+                if os.path.exists(path):
+                    document_path = path
+                    logging.debug(f"Found document at: {document_path}")
+                    break
+        
+        logging.debug(f"Document path: {document_path}")
+        
+        # 检查文件是否存在
+        if not os.path.exists(document_path):
+            # 尝试从项目根目录查找
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            logging.debug(f"Project root: {project_root}")
+            
+            # 如果文档URL是相对路径，尝试从项目根目录查找
+            if isinstance(document_url, str) and document_url.startswith('/'):
+                root_path = os.path.join(project_root, document_url.lstrip('/'))
+                logging.debug(f"Trying root path: {root_path}")
+                if os.path.exists(root_path):
+                    document_path = root_path
+                    logging.debug(f"Found document at root path: {document_path}")
+                else:
+                    # 如果还是找不到，尝试最后一次扫描所有uploads目录
+                    logging.debug("Scanning all uploads directories for the file...")
+                    filename = os.path.basename(document_url)
+                    found = False
+                    
+                    for root, dirs, files in os.walk(project_root):
+                        if 'uploads' in root and filename in files:
+                            document_path = os.path.join(root, filename)
+                            logging.debug(f"Found document during scan: {document_path}")
+                            found = True
+                            break
+                    
+                    if not found:
+                        return f"文档不存在: {document_url}"
+            else:
+                return f"文档不存在: {document_url}"
+        
+        # 读取文档内容
+        try:
+            with open(document_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            # 如果使用UTF-8读取失败，尝试使用其他编码
+            try:
+                with open(document_path, 'r', encoding='gbk') as f:
+                    content = f.read()
+            except UnicodeDecodeError:
+                return f"无法解析文档编码: {document_url}"
+        except Exception as e:
+            return f"读取文档时出错: {str(e)}"
+        
+        # 根据操作类型处理文档
+        if action == "analyze":
+            # 分析文档内容
+            if len(content) > 1000:
+                preview = content[:1000] + "..."
+            else:
+                preview = content
+            
+            return f"文档内容分析\n\n文档路径: {document_url}\n文档大小: {os.path.getsize(document_path)} 字节\n内容预览:\n{preview}"
+        
+        elif action == "summarize":
+            # 生成文档摘要
+            return f"文档摘要\n\n文档路径: {document_url}\n文档大小: {os.path.getsize(document_path)} 字节\n摘要: 这是一个文本文档，包含约 {len(content)} 个字符。在实际实现中，这里应调用文本摘要API来生成文档的摘要。"
+        
+        elif action == "extract":
+            # 提取文档信息
+            return f"文档信息提取\n\n文档路径: {document_url}\n文档大小: {os.path.getsize(document_path)} 字节\n提取的信息: 在实际实现中，这里应调用信息提取API来从文档中提取结构化信息。"
+        
+        else:
+            return f"不支持的操作类型: {action}"
+    
+    except Exception as e:
+        logging.exception(f"Error processing document: {str(e)}")
+        return f"处理文档时出错: {str(e)}"

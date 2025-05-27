@@ -353,17 +353,14 @@ const Home = () => {
                 <div className="chat-messages">
                   <div className="message user-message">
                     <div className="message-avatar">U</div>
-                    <div className="message-content">这是我在新加坡拍的照片，你能告诉我这是哪里吗？</div>
-                  </div>
-                  <div className="message user-message">
-                    <div className="message-avatar">U</div>
-                    <div className="message-content image-content">
+                    <div className="message-content">
+                      <div>这是我在新加坡拍的照片，你能告诉我这是哪里吗？</div>
                       <div className="message-image"></div>
                     </div>
                   </div>
                   <div className="message ai-message">
                     <div className="message-avatar">AI</div>
-                    <div className="message-content">这是新加坡的滨海湾金沙酒店（Marina Bay Sands）和附近的滨海花园（Gardens by the Bay）。这是新加坡最有标志性的建筑群之一，以其独特的“船”形屋顶和壁观泳池而闻名。你是在新加坡旅行吗？</div>
+                    <div className="message-content">这是新加坡的滨海湾金沙酒店（Marina Bay Sands）和附近的滨海花园（Gardens by the Bay）以其独特的“船”形屋顶而闻名。</div>
                   </div>
                 </div>
               </div>

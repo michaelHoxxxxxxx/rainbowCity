@@ -44,15 +44,36 @@ class EventLogger:
         # 确保日志目录存在
         os.makedirs(self.log_dir, exist_ok=True)
         
-    def log_user_input(self, session_id: str, user_id: str, ai_id: str, input_text: str) -> LogEntry:
-        """记录用户输入"""
+    def log_user_input(self, session_id: str, user_id: str, ai_id: str, input_text: str, 
+                     file_type: Optional[str] = None, file_info: Optional[Dict[str, Any]] = None) -> LogEntry:
+        """记录用户输入和文件信息
+        
+        Args:
+            session_id: 会话ID
+            user_id: 用户ID
+            ai_id: AI ID
+            input_text: 用户输入文本
+            file_type: 文件类型（图片、音频、视频、文档）
+            file_info: 文件元信息
+        """
+        content = {"input": input_text}
+        
+        # 添加文件信息（如果有）
+        if file_type:
+            content["file_type"] = file_type
+            
+            if file_info:
+                # 移除可能的大型数据字段，避免日志过大
+                safe_file_info = {k: v for k, v in file_info.items() if k not in ['data', 'content']}
+                content["file_info"] = safe_file_info
+        
         entry = LogEntry(
             session_id=session_id,
             user_id=user_id,
             ai_id=ai_id,
             timestamp=datetime.now().isoformat(),
             event_type="user_input",
-            content={"input": input_text}
+            content=content
         )
         self.logs.append(entry)
         return entry
