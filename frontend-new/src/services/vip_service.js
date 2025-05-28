@@ -5,9 +5,31 @@ const API_URL = 'http://localhost:5000/vip/';
 // 获取所有VIP套餐信息
 export const getVIPPlans = async () => {
   try {
-    const response = await axios.get(API_URL + 'plans');
-    return response.data.plans;
+    console.log('Fetching VIP plans from:', API_URL + 'plans');
+    const response = await axios.get(API_URL + 'plans', { withCredentials: true });
+    console.log('VIP plans response:', response.data);
+    
+    // 验证返回的数据格式
+    if (response.data && response.data.plans) {
+      // 确保返回的是数组
+      if (Array.isArray(response.data.plans)) {
+        return response.data.plans;
+      } else {
+        // 如果是对象，转换为数组
+        const plansArray = Object.values(response.data.plans);
+        return plansArray;
+      }
+    }
+    
+    // 如果数据格式不符合预期，返回空数组
+    console.warn('Invalid VIP plans data format:', response.data);
+    return [];
   } catch (error) {
+    console.error('Error fetching VIP plans:', error);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
     throw error.response?.data?.error || '获取VIP套餐信息失败';
   }
 };
@@ -15,7 +37,7 @@ export const getVIPPlans = async () => {
 // 获取当前用户的VIP状态
 export const getVIPStatus = async () => {
   try {
-    const response = await axios.get(API_URL + 'status');
+    const response = await axios.get(API_URL + 'status', { withCredentials: true });
     return response.data;
   } catch (error) {
     throw error.response?.data?.error || '获取VIP状态失败';

@@ -16,12 +16,10 @@ import SignupForm from './components/auth/SignupForm';
 
 // 用户组件
 import UserProfile from './components/user/UserProfile';
-
-// VIP组件
 import VIPPlans from './components/vip/VIPPlans';
-
-// AI关系组件
 import AIRelationships from './components/ai/AIRelationships';
+import PromoterDashboard from './components/promoter/PromoterDashboard';
+import PromoterApplication from './components/promoter/PromoterApplication';
 
 // AI聊天组件
 import AiChat from './components/AiChat';
@@ -81,6 +79,8 @@ const AppRoutes = () => {
           <Route path="profile" element={<UserProfile />} />
           <Route path="vip" element={<VIPPlans />} />
           <Route path="ai-relationships" element={<AIRelationships />} />
+          <Route path="promoter/dashboard" element={<PromoterDashboard />} />
+          <Route path="promoter/apply" element={<PromoterApplication />} />
         </Route>
         
         {/* 404路由 */}

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { isAuthenticated } from '../services/auth_service';
 import UserAvatar from '../components/common/UserAvatar';
 import './Home.css';
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // 检查是否在仪表盘路由下
+  const isDashboard = location.pathname.includes('/dashboard');
 
   useEffect(() => {
     // 检查用户是否已登录
@@ -34,32 +38,37 @@ const Home = () => {
     return <div className="loading-container">加载中...</div>;
   }
 
+  // 根据路由选择不同的样式类
+  const containerClass = isDashboard ? "dashboard-home-container" : "landing-container";
+  
   return (
-    <div className="landing-container">
-      {/* 顶部导航栏 */}
-      <header className="landing-header">
-        <div className="logo-container">
-          <div className="logo">彩虹城</div>
-        </div>
-        <nav className="main-nav">
-          <ul>
-            <li><a href="#features">功能</a></li>
-            <li><a href="#about">关于我们</a></li>
-            <li><a href="#tools">工具</a></li>
-            <li><a href="#faq">常见问题</a></li>
-          </ul>
-        </nav>
-        <div className="auth-buttons">
-          {isLoggedIn ? (
-            <UserAvatar />
-          ) : (
-            <>
-              <Link to="/login" className="btn btn-text">登录</Link>
-              <Link to="/signup" className="btn btn-primary">注册</Link>
-            </>
-          )}
-        </div>
-      </header>
+    <div className={containerClass}>
+      {/* 顶部导航栏 - 仅在非仪表盘路由下显示 */}
+      {!isDashboard && (
+        <header className="landing-header">
+          <div className="logo-container">
+            <div className="logo">彩虹城</div>
+          </div>
+          <nav className="main-nav">
+            <ul>
+              <li><a href="#features">功能</a></li>
+              <li><a href="#about">关于我们</a></li>
+              <li><a href="#tools">工具</a></li>
+              <li><a href="#faq">常见问题</a></li>
+            </ul>
+          </nav>
+          <div className="auth-buttons">
+            {isLoggedIn ? (
+              <UserAvatar />
+            ) : (
+              <>
+                <Link to="/login" className="btn btn-text">登录</Link>
+                <Link to="/signup" className="btn btn-primary">注册</Link>
+              </>
+            )}
+          </div>
+        </header>
+      )}
 
       {/* 主要内容区域 */}
       <main>
@@ -506,42 +515,44 @@ const Home = () => {
         </section>
       </main>
 
-      {/* 页脚 */}
-      <footer className="landing-footer">
-        <div className="footer-content">
-          <div className="footer-branding">
-            <div className="footer-logo">彩虹城</div>
-            <p className="footer-description">探索AI共生社区的无限可能，通过先进的AI技术创建个性化体验和关系网络。</p>
+      {/* 页脚 - 仅在非仪表盘路由下显示 */}
+      {!isDashboard && (
+        <footer className="landing-footer">
+          <div className="footer-content">
+            <div className="footer-branding">
+              <div className="footer-logo">彩虹城</div>
+              <p className="footer-description">探索AI共生社区的无限可能，通过先进的AI技术创建个性化体验和关系网络。</p>
+            </div>
+            <div className="footer-links">
+              <h4>导航</h4>
+              <ul>
+                <li><a href="#features">功能</a></li>
+                <li><a href="#tools">工具</a></li>
+                <li><a href="#faq">常见问题</a></li>
+              </ul>
+            </div>
+            <div className="footer-links">
+              <h4>法律</h4>
+              <ul>
+                <li><Link to="/terms">使用条款</Link></li>
+                <li><Link to="/privacy">隐私政策</Link></li>
+                <li><Link to="/cookies">Cookie 政策</Link></li>
+              </ul>
+            </div>
+            <div className="footer-links">
+              <h4>联系我们</h4>
+              <ul>
+                <li><a href="mailto:support@rainbowcity.ai">support@rainbowcity.ai</a></li>
+                <li><button className="footer-button">帮助中心</button></li>
+                <li><button className="footer-button">反馈</button></li>
+              </ul>
+            </div>
           </div>
-          <div className="footer-links">
-            <h4>导航</h4>
-            <ul>
-              <li><a href="#features">功能</a></li>
-              <li><a href="#tools">工具</a></li>
-              <li><a href="#faq">常见问题</a></li>
-            </ul>
+          <div className="footer-bottom">
+            <p>© 2025 彩虹城 AI. 保留所有权利.</p>
           </div>
-          <div className="footer-links">
-            <h4>法律</h4>
-            <ul>
-              <li><Link to="/terms">使用条款</Link></li>
-              <li><Link to="/privacy">隐私政策</Link></li>
-              <li><Link to="/cookies">Cookie 政策</Link></li>
-            </ul>
-          </div>
-          <div className="footer-links">
-            <h4>联系我们</h4>
-            <ul>
-              <li><a href="mailto:support@rainbowcity.ai">support@rainbowcity.ai</a></li>
-              <li><button className="footer-button">帮助中心</button></li>
-              <li><button className="footer-button">反馈</button></li>
-            </ul>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <p>© 2025 彩虹城 AI. 保留所有权利.</p>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 };

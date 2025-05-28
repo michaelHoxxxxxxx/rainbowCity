@@ -1,6 +1,6 @@
 from app.extensions import db
 from datetime import datetime
-from app.models.enums import VIPLevel, UserRole
+from app.models.enums import VIPLevel, UserRole, PromoterType, AdminPosition, AdminLevel
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -24,6 +24,20 @@ class User(db.Model):
 
     # 角色和权限
     roles = db.Column(db.ARRAY(db.Enum(UserRole)), default=[UserRole.normal])
+    
+    # 推广用户相关字段
+    promoter_type = db.Column(db.Enum(PromoterType), nullable=True)  # 推广类型：个人/机构
+    promoter_approved = db.Column(db.Boolean, default=False)  # 是否已通过推广审核
+    promoter_application_date = db.Column(db.DateTime, nullable=True)  # 申请推广的日期
+    promoter_approval_date = db.Column(db.DateTime, nullable=True)  # 推广审核通过日期
+    promoter_commission_rate = db.Column(db.Integer, default=0)  # 推广佣金比例（以百分比存储，如 15% 存储为 15）
+    promoter_total_earnings = db.Column(db.Integer, default=0)  # 累计推广收益（以分为单位，如 10.5元 存储为 1050）
+    promoter_available_balance = db.Column(db.Integer, default=0)  # 可提现余额（以分为单位）
+    
+    # 管理用户相关字段
+    admin_position = db.Column(db.Enum(AdminPosition), nullable=True)  # 管理岗位
+    admin_level = db.Column(db.Enum(AdminLevel), nullable=True)  # 管理级别
+    admin_permissions = db.Column(db.JSON, default={})  # 具体权限设置
     
     # 邀请系统
     invite_code_used = db.Column(db.String(16), nullable=True)  # 使用的邀请码
@@ -84,55 +98,69 @@ class User(db.Model):
     
     def update_limits_based_on_vip(self):
         """根据VIP等级更新用户的各种限制"""
-        # 设置AI伴侣数量上限
-        ai_companions_limits = {
-            VIPLevel.free: 1,
-            VIPLevel.pro: 3,
-            VIPLevel.premium: 5,
-            VIPLevel.ultimate: 7,
-            VIPLevel.team: 35
-        }
-        self.ai_companions_limit = ai_companions_limits.get(self.vip_level, 1)
+        # 检查VIP是否过期
+        vip_expired = False
+        if self.vip_expiry and datetime.utcnow() > self.vip_expiry:
+            # VIP已过期，重置为Free
+            self.vip_level = VIPLevel.free
+            vip_expired = True
         
-        # 设置可唤醒AI数量上限
-        ai_awakener_limits = {
-            VIPLevel.free: 0,
-            VIPLevel.pro: 1,
-            VIPLevel.premium: 3,
-            VIPLevel.ultimate: 5,
-            VIPLevel.team: 25
-        }
-        self.ai_awakener_limit = ai_awakener_limits.get(self.vip_level, 0)
+        # 根据VIP等级设置限制
+        if self.vip_level == VIPLevel.free:
+            self.daily_chat_limit = 10
+            self.daily_lio_limit = 0
+            self.ai_companions_limit = 1
+            self.ai_awakener_limit = 0
+            self.weekly_invite_limit = 10
         
-        # 设置每日对话次数上限
-        daily_chat_limits = {
-            VIPLevel.free: 10,
-            VIPLevel.pro: 50,
-            VIPLevel.premium: 100,
-            VIPLevel.ultimate: float('inf'),  # 无限
-            VIPLevel.team: float('inf')  # 无限
-        }
-        self.daily_chat_limit = daily_chat_limits.get(self.vip_level, 10)
+        elif self.vip_level == VIPLevel.pro:
+            self.daily_chat_limit = 50
+            self.daily_lio_limit = 10
+            self.ai_companions_limit = 3
+            self.ai_awakener_limit = 1
+            self.weekly_invite_limit = 20
         
-        # 设置每日LIO对话次数上限
-        daily_lio_limits = {
-            VIPLevel.free: 0,
-            VIPLevel.pro: 50,
-            VIPLevel.premium: 100,
-            VIPLevel.ultimate: float('inf'),  # 无限
-            VIPLevel.team: float('inf')  # 无限
-        }
-        self.daily_lio_limit = daily_lio_limits.get(self.vip_level, 0)
+        elif self.vip_level == VIPLevel.premium:
+            self.daily_chat_limit = 100
+            self.daily_lio_limit = 30
+            self.ai_companions_limit = 6
+            self.ai_awakener_limit = 3
+            self.weekly_invite_limit = 50
         
-        # 设置每周邀请码使用次数上限
-        weekly_invite_limits = {
-            VIPLevel.free: 10,
-            VIPLevel.pro: 100,
-            VIPLevel.premium: 200,
-            VIPLevel.ultimate: float('inf'),  # 无限
-            VIPLevel.team: float('inf')  # 无限
-        }
-        self.weekly_invite_limit = weekly_invite_limits.get(self.vip_level, 10)
+        elif self.vip_level == VIPLevel.ultimate:
+            self.daily_chat_limit = 300
+            self.daily_lio_limit = 100
+            self.ai_companions_limit = 10
+            self.ai_awakener_limit = 5
+            self.weekly_invite_limit = 100
+        
+        elif self.vip_level == VIPLevel.team:
+            self.daily_chat_limit = 1000
+            self.daily_lio_limit = 500
+            self.ai_companions_limit = 20
+            self.ai_awakener_limit = 10
+            self.weekly_invite_limit = 200
+        
+        # 确保当前值不超过限制
+        if self.daily_chat_count > self.daily_chat_limit:
+            self.daily_chat_count = self.daily_chat_limit
+            
+        if self.daily_lio_count > self.daily_lio_limit:
+            self.daily_lio_count = self.daily_lio_limit
+            
+        if self.ai_companions_count > self.ai_companions_limit:
+            self.ai_companions_count = self.ai_companions_limit
+            
+        if self.ai_awakened_count > self.ai_awakener_limit:
+            self.ai_awakened_count = self.ai_awakener_limit
+            
+        if self.weekly_invite_count > self.weekly_invite_limit:
+            self.weekly_invite_count = self.weekly_invite_limit
+            
+        # 如果VIP过期，处理推广权限
+        if vip_expired and UserRole.promoter in self.roles:
+            # VIP过期后，暂时禁用推广权限，但保留推广用户角色
+            self.promoter_approved = False
     
     def get_daily_usage_limit(self):
         """获取用户每日AI使用限制"""
@@ -256,10 +284,56 @@ class User(db.Model):
         """移除用户角色"""
         if role in self.roles:
             self.roles.remove(role)
+            
+    def is_promoter(self):
+        """检查用户是否为推广用户"""
+        return UserRole.promoter in self.roles and self.promoter_approved
+    
+    def is_individual_promoter(self):
+        """检查用户是否为个人推广用户"""
+        return self.is_promoter() and self.promoter_type == PromoterType.individual
+    
+    def is_institution_promoter(self):
+        """检查用户是否为机构推广用户"""
+        return self.is_promoter() and self.promoter_type == PromoterType.institution
+    
+    def is_admin(self):
+        """检查用户是否为管理用户"""
+        return UserRole.admin in self.roles
+    
+    def apply_for_promoter(self, promoter_type):
+        """申请成为推广用户"""
+        if not self.is_vip():
+            return False, "只有VIP会员才能申请推广权限"
+            
+        self.promoter_type = promoter_type
+        self.promoter_application_date = datetime.utcnow()
+        self.promoter_approved = False
+        return True, "申请已提交，等待审核"
+    
+    def approve_promoter(self, commission_rate=0.1):
+        """审核通过推广用户"""
+        self.promoter_approved = True
+        self.promoter_approval_date = datetime.utcnow()
+        self.promoter_commission_rate = commission_rate
+        self.add_role(UserRole.promoter)
+        return True, "推广用户审核已通过"
+    
+    def reject_promoter(self):
+        """拒绝推广用户申请"""
+        self.promoter_approved = False
+        return True, "推广用户申请已拒绝"
+    
+    def set_admin_position(self, position, level):
+        """设置管理用户岗位和级别"""
+        self.admin_position = position
+        self.admin_level = level
+        self.add_role(UserRole.admin)
+        return True, "管理用户设置成功"
     
     def to_dict(self):
         """将用户对象转换为字典"""
-        return {
+        data = {
             'id': self.id,
             'username': self.username,
             'email': self.email,
@@ -274,6 +348,8 @@ class User(db.Model):
             
             # 角色相关
             'roles': [role.value for role in self.roles] if self.roles else [],
+            'is_promoter': self.is_promoter(),
+            'is_admin': self.is_admin(),
             
             # 账号状态
             'is_activated': self.is_activated,
@@ -304,3 +380,25 @@ class User(db.Model):
             'ai_ids_generated': self.ai_ids_generated,
             'frequencies_generated': self.frequencies_generated
         }
+        
+        # 如果是推广用户，添加推广相关信息
+        if self.is_promoter():
+            data.update({
+                'promoter_type': self.promoter_type.value if self.promoter_type else None,
+                'promoter_approved': self.promoter_approved,
+                'promoter_application_date': self.promoter_application_date.isoformat() if self.promoter_application_date else None,
+                'promoter_approval_date': self.promoter_approval_date.isoformat() if self.promoter_approval_date else None,
+                'promoter_commission_rate': self.promoter_commission_rate,
+                'promoter_total_earnings': self.promoter_total_earnings,
+                'promoter_available_balance': self.promoter_available_balance
+            })
+        
+        # 如果是管理用户，添加管理相关信息
+        if self.is_admin():
+            data.update({
+                'admin_position': self.admin_position.value if self.admin_position else None,
+                'admin_level': self.admin_level.value if self.admin_level else None,
+                'admin_permissions': self.admin_permissions
+            })
+            
+        return data

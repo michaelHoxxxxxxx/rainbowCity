@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// 使用相对路径，请求会通过代理转发到后端
-const API_URL = '/auth/';
+// 使用绝对路径，直接指向后端服务器
+const API_URL = 'http://localhost:5000/auth/';
 
 // 设置请求拦截器，在每个请求中添加认证令牌
 axios.interceptors.request.use(
@@ -10,6 +10,8 @@ axios.interceptors.request.use(
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+    // 添加withCredentials以支持跨域请求中的凭证
+    config.withCredentials = true;
     return config;
   },
   (error) => {
@@ -20,9 +22,25 @@ axios.interceptors.request.use(
 // 注册新用户
 export const register = async (userData) => {
   try {
+    console.log('Registering user with data:', { ...userData, password: '***' });
+    console.log('Registration endpoint:', API_URL + 'register');
+    
     const response = await axios.post(API_URL + 'register', userData);
+    console.log('Registration response:', response.data);
+    
+    // 注册成功后，如果返回了token，存储到本地
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
     return response.data;
   } catch (error) {
+    console.error('Registration error:', error);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
     throw error.response?.data?.error || '注册失败，请稍后再试';
   }
 };
@@ -57,11 +75,26 @@ export const getCurrentUser = () => {
 // 获取用户详细信息（从服务器刷新）
 export const getUserProfile = async () => {
   try {
-    const response = await axios.get(API_URL + 'profile');
+    console.log('Fetching user profile from:', API_URL + 'profile');
+    const token = localStorage.getItem('token');
+    console.log('Using token:', token ? `${token.substring(0, 10)}...` : 'No token found');
+    
+    const response = await axios.get(API_URL + 'profile', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    console.log('User profile response:', response.data);
     // 更新本地存储的用户信息
     localStorage.setItem('user', JSON.stringify(response.data));
     return response.data;
   } catch (error) {
+    console.error('Error fetching user profile:', error);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
     throw error.response?.data?.error || '获取用户信息失败';
   }
 };

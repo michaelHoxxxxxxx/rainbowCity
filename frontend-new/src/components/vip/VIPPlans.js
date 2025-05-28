@@ -17,32 +17,50 @@ const VIPPlans = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [plansData, userData] = await Promise.all([
-          getVIPPlans(),
-          getUserProfile()
-        ]);
-        setPlans(plansData);
-        setUser(userData);
         
-        // 默认选择比当前用户VIP等级高一级的计划
-        if (userData && plansData.length > 0) {
-          const currentLevel = userData.vip_level || 'free';
-          const levels = ['free', 'basic', 'pro', 'premium'];
-          const currentIndex = levels.indexOf(currentLevel);
+        // 先获取用户信息
+        let userData;
+        try {
+          userData = await getUserProfile();
+          console.log('User profile loaded:', userData);
+          setUser(userData);
+        } catch (userErr) {
+          console.error('获取用户信息失败:', userErr);
+          // 继续加载VIP计划，即使用户信息加载失败
+        }
+        
+        // 然后获取VIP计划
+        try {
+          const plansData = await getVIPPlans();
+          console.log('VIP plans loaded:', plansData);
           
-          if (currentIndex < levels.length - 1) {
-            const nextLevel = levels[currentIndex + 1];
-            const nextPlan = plansData.find(plan => plan.level === nextLevel);
-            if (nextPlan) {
-              setSelectedPlan(nextPlan);
+          // 确保plansData是数组
+          const plansArray = Array.isArray(plansData) ? plansData : [];
+          setPlans(plansArray);
+          
+          // 默认选择比当前用户VIP等级高一级的计划
+          if (userData && plansArray.length > 0) {
+            const currentLevel = userData.vip_level || 'free';
+            const levels = ['free', 'basic', 'pro', 'premium'];
+            const currentIndex = levels.indexOf(currentLevel);
+            
+            if (currentIndex < levels.length - 1) {
+              const nextLevel = levels[currentIndex + 1];
+              const nextPlan = plansArray.find(plan => plan.level === nextLevel);
+              if (nextPlan) {
+                setSelectedPlan(nextPlan);
+              } else {
+                setSelectedPlan(plansArray[0]);
+              }
             } else {
-              setSelectedPlan(plansData[0]);
+              setSelectedPlan(plansArray[0]);
             }
-          } else {
-            setSelectedPlan(plansData[0]);
+          } else if (plansArray.length > 0) {
+            setSelectedPlan(plansArray[0]);
           }
-        } else if (plansData.length > 0) {
-          setSelectedPlan(plansData[0]);
+        } catch (plansErr) {
+          console.error('获取VIP计划失败:', plansErr);
+          setError('无法加载VIP计划信息，请稍后再试');
         }
       } catch (err) {
         setError('获取VIP计划信息失败');

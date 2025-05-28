@@ -31,21 +31,41 @@ const UserProfile = () => {
     const fetchUserData = async () => {
       try {
         setLoading(true);
-        const userData = await getUserProfile();
-        setUser(userData);
-        setProfileData({
-          username: userData.username || '',
-          display_name: userData.display_name || '',
-          bio: userData.bio || '',
-          avatar_url: userData.avatar_url || ''
-        });
+        
+        // 获取用户信息
+        try {
+          const userData = await getUserProfile();
+          setUser(userData);
+          setProfileData({
+            username: userData.username || '',
+            display_name: userData.display_name || '',
+            bio: userData.bio || '',
+            avatar_url: userData.avatar_url || ''
+          });
+          console.log('用户信息获取成功:', userData);
+        } catch (userErr) {
+          console.error('获取用户信息失败:', userErr);
+          setError('获取用户信息失败: ' + (userErr.message || '未知错误'));
+          // 如果是认证错误，可以重定向到登录页面
+          if (userErr.response && userErr.response.status === 401) {
+            console.log('认证失败，请重新登录');
+            // 可以在这里添加重定向到登录页面的逻辑
+            // navigate('/login');
+          }
+        }
         
         // 获取VIP状态
-        const vipData = await getVIPStatus();
-        setVipStatus(vipData);
+        try {
+          const vipData = await getVIPStatus();
+          setVipStatus(vipData);
+          console.log('VIP状态获取成功:', vipData);
+        } catch (vipErr) {
+          console.error('获取VIP状态失败:', vipErr);
+          // VIP状态获取失败不影响用户资料的显示
+        }
       } catch (err) {
-        setError('获取用户信息失败');
-        console.error(err);
+        setError('获取数据失败');
+        console.error('获取数据失败:', err);
       } finally {
         setLoading(false);
       }

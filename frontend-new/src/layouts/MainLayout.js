@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getUserProfile, logout } from '../services/auth_service';
+import UserAvatar from '../components/common/UserAvatar';
 import './MainLayout.css';
 
 const MainLayout = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,14 +36,11 @@ const MainLayout = () => {
     fetchUserData();
   }, []);
 
-  // 处理登出
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+  // 处理注销
+  const handleLogout = () => {
+    logout();
+    closeUserMenu(); // 关闭用户菜单
+    navigate('/');
   };
 
   // 切换菜单状态
@@ -48,10 +48,35 @@ const MainLayout = () => {
     setMenuOpen(!menuOpen);
   };
 
-  // 关闭菜单
+  // 关闭侧边菜单
   const closeMenu = () => {
     setMenuOpen(false);
   };
+
+  // 切换用户下拉菜单
+  const toggleUserMenu = (e) => {
+    e.stopPropagation();
+    setUserMenuOpen(!userMenuOpen);
+  };
+
+  // 关闭用户下拉菜单
+  const closeUserMenu = () => {
+    setUserMenuOpen(false);
+  };
+
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        closeUserMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // 检查当前路由是否活跃
   const isActive = (path) => {
@@ -71,24 +96,7 @@ const MainLayout = () => {
         </div>
         
         <div className="header-right">
-          {user && (
-            <div className="user-menu">
-              <div className="user-avatar" onClick={() => navigate('/profile')}>
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} alt="用户头像" />
-                ) : (
-                  <div className="avatar-placeholder">
-                    {user.display_name?.charAt(0) || user.username?.charAt(0) || user.email?.charAt(0) || '?'}
-                  </div>
-                )}
-              </div>
-              {user.is_vip && (
-                <div className="vip-badge">
-                  {user.vip_level}
-                </div>
-              )}
-            </div>
-          )}
+          {user && <UserAvatar />}
         </div>
       </header>
       
@@ -156,6 +164,28 @@ const MainLayout = () => {
             AI关系管理
           </Link>
           
+          {user && user.is_vip && (
+            <Link 
+              to="/dashboard/promoter/dashboard" 
+              className={`nav-item ${isActive('/dashboard/promoter/dashboard') ? 'active' : ''}`}
+              onClick={closeMenu}
+            >
+              <i className="nav-icon promoter-icon"></i>
+              推广中心
+            </Link>
+          )}
+          
+          {user && user.is_vip && !user.is_promoter && (
+            <Link 
+              to="/dashboard/promoter/apply" 
+              className={`nav-item ${isActive('/dashboard/promoter/apply') ? 'active' : ''}`}
+              onClick={closeMenu}
+            >
+              <i className="nav-icon apply-icon"></i>
+              申请推广资格
+            </Link>
+          )}
+          
           <Link 
             to="/ai-chat" 
             className={`nav-item ${isActive('/ai-chat') ? 'active' : ''}`}
@@ -177,8 +207,8 @@ const MainLayout = () => {
           </Link>
           
           <Link 
-            to="/vip" 
-            className={`nav-item ${isActive('/vip') ? 'active' : ''}`}
+            to="/dashboard/vip" 
+            className={`nav-item ${isActive('/dashboard/vip') ? 'active' : ''}`}
             onClick={closeMenu}
           >
             <i className="nav-icon vip-icon"></i>

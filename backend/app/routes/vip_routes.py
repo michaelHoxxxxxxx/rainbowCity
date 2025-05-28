@@ -80,18 +80,30 @@ VIP_BENEFITS = {
 @vip_bp.route('/plans', methods=['GET'])
 def get_vip_plans():
     """获取所有VIP套餐信息"""
-    plans = {}
+    plans_list = []
     
     for level_name, level_enum in VIPLevel.__members__.items():
-        if level_name in VIP_BENEFITS:
-            plans[level_name] = {
+        if level_name in VIP_BENEFITS and level_name != 'free':  # 排除免费级别
+            plan = {
+                'level': level_name,
                 'name': level_enum.value,
-                'benefits': VIP_BENEFITS[level_name],
-                'prices': VIP_PRICES.get(level_name, {})
+                'features': VIP_BENEFITS[level_name],
+                'prices': VIP_PRICES.get(level_name, {'monthly': 0, 'yearly': 0}),
+                'ai_companions_limit': 5 if level_name == 'basic' else (10 if level_name == 'pro' else 20),
+                'ai_awakener_limit': 1 if level_name == 'basic' else (3 if level_name == 'pro' else 5),
+                'daily_chat_limit': 50 if level_name == 'basic' else (100 if level_name == 'pro' else float('inf')),
+                'daily_lio_limit': 10 if level_name == 'basic' else (30 if level_name == 'pro' else 100),
+                'weekly_invite_limit': 5 if level_name == 'basic' else (10 if level_name == 'pro' else 20)
             }
+            plans_list.append(plan)
     
+    # 按照级别排序
+    level_order = {'basic': 1, 'pro': 2, 'premium': 3}
+    plans_list.sort(key=lambda x: level_order.get(x['level'], 0))
+    
+    print(f"Returning VIP plans: {plans_list}")
     return jsonify({
-        'plans': plans
+        'plans': plans_list
     }), 200
 
 @vip_bp.route('/status', methods=['GET'])
