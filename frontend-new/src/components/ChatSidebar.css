@@ -208,6 +208,75 @@
   font-style: italic;
 }
 
+/* 未登录内容包装器 */
+.sidebar-content-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 未登录用户的登录容器 */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  width: 90%;
+  max-width: 280px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 登录信息 */
+.login-message {
+  margin-bottom: 20px;
+  color: #a18cd1;
+}
+
+.login-message p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+/* 登录按钮 */
+.login-button {
+  display: block;
+  width: 80%;
+  padding: 12px;
+  background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: none;
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+}
+
+.login-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* 注册链接 */
+.signup-link {
+  color: #a18cd1;
+  font-size: 12px;
+  text-decoration: none;
+  margin-top: 10px;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
 /* 滚动条样式 */
 .conversations-list::-webkit-scrollbar {
   width: 5px;

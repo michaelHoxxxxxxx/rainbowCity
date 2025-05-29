@@ -22,6 +22,8 @@ _db_lock = threading.Lock()
 _connection_attempts = 0
 _max_connection_attempts = 3
 _connection_retry_delay = 2  # 秒
+_db_pool = {}
+_db_pool_lock = threading.Lock()
 
 # 检查连接是否可用
 async def is_connection_alive():
@@ -87,26 +89,73 @@ async def init_db_connection():
 # 异步获取数据库连接
 async def get_db():
     """获取数据库连接"""
-    global _db
+    global _db_pool
     
-    # 如果连接不存在或者不正常，初始化连接
-    if _db is None or not await is_connection_alive():
-        return await init_db_connection()
+    # 获取当前线程 ID
+    thread_id = threading.get_ident()
     
-    return _db
+    # 使用锁确保线程安全
+    with _db_pool_lock:
+        # 检查这个线程是否已有连接
+        if thread_id in _db_pool and _db_pool[thread_id] is not None:
+            # 检查连接是否正常
+            try:
+                await _db_pool[thread_id].query('INFO FOR DB')
+                return _db_pool[thread_id]
+            except Exception:
+                # 如果连接出错，删除并创建新连接
+                try:
+                    await _db_pool[thread_id].close()
+                except Exception:
+                    pass
+                del _db_pool[thread_id]
+        
+        # 创建新连接
+        try:
+            # 创建新连接
+            db = surrealdb.Surreal()
+            await db.connect(SURREAL_URL)
+            await db.signin({"user": SURREAL_USER, "pass": SURREAL_PASS})
+            await db.use(SURREAL_NS, SURREAL_DB)
+            print(f"Created new connection for thread {thread_id}")
+            
+            # 将连接存入连接池
+            _db_pool[thread_id] = db
+            return db
+        except Exception as e:
+            print(f"Error creating connection for thread {thread_id}: {e}")
+            # 如果创建失败，尝试使用全局连接
+            if _db is not None and await is_connection_alive():
+                return _db
+            return await init_db_connection()
 
 # 异步关闭数据库连接
 async def close_db():
     """关闭数据库连接"""
-    global _db
+    global _db, _db_pool
+    
+    # 关闭全局连接
     with _db_lock:
         if _db is not None:
             try:
                 await _db.close()
                 _db = None
-                print("SurrealDB connection closed")
+                print("Global SurrealDB connection closed")
             except Exception as e:
-                print(f"Error closing SurrealDB connection: {e}")
+                print(f"Error closing global SurrealDB connection: {e}")
+    
+    # 关闭连接池中的所有连接
+    with _db_pool_lock:
+        for thread_id, conn in list(_db_pool.items()):
+            try:
+                await conn.close()
+                print(f"Closed connection for thread {thread_id}")
+            except Exception as e:
+                print(f"Error closing connection for thread {thread_id}: {e}")
+        
+        # 清空连接池
+        _db_pool.clear()
+        print("Connection pool cleared")
 
 # 同步包装器，将异步操作转换为同步操作
 def run_async(async_func):

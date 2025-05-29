@@ -44,11 +44,13 @@ def create_app():
     from .routes.agent_routes import agent_bp
     from .routes.image_routes import image_bp
     from .routes.file_routes import file_bp
+    from .routes.conversation_routes import conversation_bp
     # from .routes.user_routes import user_bp  # 如果有用户路由
 
     app.register_blueprint(ai_bp)
     app.register_blueprint(relationship_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(conversation_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(vip_bp)
     app.register_blueprint(agent_bp)

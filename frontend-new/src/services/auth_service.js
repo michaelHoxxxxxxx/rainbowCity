@@ -32,6 +32,14 @@ export const register = async (userData) => {
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // 确保单独存储userId，用于对话功能
+      if (response.data.user && response.data.user.id) {
+        console.log('Storing user ID:', response.data.user.id);
+        localStorage.setItem('userId', response.data.user.id);
+      } else {
+        console.warn('User ID not found in registration response');
+      }
     }
     
     return response.data;
@@ -48,21 +56,40 @@ export const register = async (userData) => {
 // 用户登录
 export const login = async (email, password) => {
   try {
+    console.log('Attempting login for:', email);
     const response = await axios.post(API_URL + 'login', { email, password });
+    console.log('Login response:', response.data);
+    
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // 确保单独存储userId，用于对话功能
+      if (response.data.user && response.data.user.id) {
+        console.log('Storing user ID:', response.data.user.id);
+        localStorage.setItem('userId', response.data.user.id);
+      } else {
+        console.warn('User ID not found in response');
+      }
     }
     return response.data;
   } catch (error) {
+    console.error('Login error:', error);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
     throw error.response?.data?.error || '登录失败，请检查邮箱和密码';
   }
 };
 
 // 用户登出
 export const logout = () => {
+  console.log('Logging out user');
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('userId');
+  console.log('All user data cleared from localStorage');
 };
 
 // 获取当前用户信息

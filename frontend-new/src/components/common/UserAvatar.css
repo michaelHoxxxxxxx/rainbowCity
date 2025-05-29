@@ -38,12 +38,12 @@
   border: 2px solid rgba(255, 255, 255, 0.1);
 }
 
-/* 用户菜单 */
+/* 用户菜单 - 完全重写以解决右侧空白问题 */
 .user-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 200px;
+  width: 220px;
   background-color: #202123;
   border-radius: 6px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
@@ -52,9 +52,23 @@
   animation: fadeIn 0.2s ease;
   padding: 0;
   border: 1px solid #4d4d4f;
-  /* 确保下拉菜单不会影响页眉的布局 */
   max-height: calc(100vh - 100px);
   overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* 固定宽度的菜单 */
+.user-menu-fixed {
+  width: 220px !important;
+  padding: 0 !important;
+  right: 0 !important;
+}
+
+/* 确保菜单项列表占满全宽 */
+.full-width {
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 @keyframes fadeIn {
@@ -68,9 +82,17 @@
   }
 }
 
+/* 菜单项列表 */
+.menu-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
 /* 用户邮箱项 */
 .user-email-item {
-  padding: 0;
+  padding: 8px 0;
+  background-color: #202123;
 }
 
 /* 用户邮箱 */
@@ -78,6 +100,10 @@
   word-break: break-all;
   justify-content: center;
   text-align: center;
+  padding: 10px;
+  color: #ececf1;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 /* 菜单分隔线 */
@@ -87,31 +113,48 @@
   margin: 0;
 }
 
-/* 菜单项列表 */
-.menu-items {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
 /* 菜单项 */
 .menu-items li {
   list-style: none;
   margin: 0;
   padding: 0;
   background-color: transparent;
+  position: relative;
+  transition: background-color 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* 菜单项基本样式 - 应用于所有菜单相关元素 */
-.menu-item, .text-button, .menu-item a, .user-email {
+/* 菜单项容器 */
+.menu-item-container {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+/* 菜单文本 */
+.menu-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  padding-right: 10px;
+}
+
+/* 所有菜单项的基本样式 */
+.menu-item,
+.menu-items li a,
+.menu-items li button,
+.text-button,
+.user-email {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 8px 10px;
+  padding: 10px 0 10px 10px;
+  margin: 0;
   color: #ececf1;
-  text-decoration: none;
+  text-decoration: none !important;
   font-size: 14px;
-  transition: background-color 0.2s ease;
   line-height: 1.5;
   font-weight: 400;
   font-family: 'Söhne', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
@@ -121,50 +164,65 @@
   letter-spacing: normal;
   box-sizing: border-box;
   background-color: transparent;
-}
-
-/* 无图标菜单项 */
-.no-icon {
-  padding-left: 10px;
-  padding-right: 10px;
-  justify-content: flex-start;
-}
-
-/* 统一的鼠标悬停样式 */
-.menu-items li a, 
-.menu-items li button {
-  background-color: transparent;
-}
-
-.menu-items li a:hover, 
-.menu-items li button:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  transition: background-color 0.2s ease;
-  color: #ececf1 !important; /* 保持文字颜色不变 */
-}
-
-/* 注销按钮样式 */
-.logout-item {
-  background: none;
   border: none;
+  outline: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0 !important;
 }
 
-/* 菜单图标 */
+/* 统一的悬停效果 */
+.menu-items li:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 确保链接和按钮在悬停时不会有自己的背景色 */
+.menu-items li:hover a,
+.menu-items li:hover button,
+.menu-items li:hover .menu-item {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+
+/* 菜单图标统一样式 - 重写以去除右侧空白 */
 .menu-icon-box {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-right: 12px;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  margin-left: 10px;
   line-height: 1;
   flex-shrink: 0;
-  font-size: 14px;
   color: #ececf1;
 }
 
-/* 文本按钮 */
-.text-button {
-  background: none;
-  border: none;
+/* 确保所有SVG图标大小一致 */
+.menu-icon-box svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2px;
+}
+
+/* 强制去除右侧空白 */
+.user-menu * {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+.menu-items li {
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
+}
+
+.menu-items li a,
+.menu-items li button {
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
 }
