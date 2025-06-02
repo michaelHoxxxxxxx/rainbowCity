@@ -135,26 +135,27 @@ async def close_db():
     global _db, _db_pool
     
     # 关闭全局连接
-    with _db_lock:
-        if _db is not None:
-            try:
-                await _db.close()
-                _db = None
-                print("Global SurrealDB connection closed")
-            except Exception as e:
-                print(f"Error closing global SurrealDB connection: {e}")
+    if _db is not None:
+        try:
+            print("Closing global SurrealDB connection...")
+            await _db.close()
+            _db = None
+            print("Global SurrealDB connection closed")
+        except Exception as e:
+            print(f"Error closing global SurrealDB connection: {e}")
     
     # 关闭连接池中的所有连接
     with _db_pool_lock:
         for thread_id, conn in list(_db_pool.items()):
-            try:
-                await conn.close()
-                print(f"Closed connection for thread {thread_id}")
-            except Exception as e:
-                print(f"Error closing connection for thread {thread_id}: {e}")
-        
-        # 清空连接池
-        _db_pool.clear()
+            if conn is not None:
+                try:
+                    print(f"Closing SurrealDB connection for thread {thread_id}...")
+                    await conn.close()
+                    print(f"SurrealDB connection for thread {thread_id} closed")
+                except Exception as e:
+                    print(f"Error closing SurrealDB connection for thread {thread_id}: {e}")
+                finally:
+                    _db_pool[thread_id] = None
         print("Connection pool cleared")
 
 # 同步包装器，将异步操作转换为同步操作

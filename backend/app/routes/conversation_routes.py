@@ -50,57 +50,83 @@ def get_conversations(current_user):
         from app.db import run_async, get_db
         
         async def _get_conversations():
-            db = await get_db()
-            if db is None:
+            try:
+                db = await get_db()
+                if db is None:
+                    print("数据库连接为空，返回空列表")
+                    return []
+                
+                # 先尝试直接查询
+                try:
+                    query_str = f"SELECT * FROM conversations WHERE user_id = '{user_id}'"
+                    print(f"Direct SQL query: {query_str}")
+                    result = await db.query(query_str)
+                    
+                    print(f"查询结果: {result}")
+                    
+                    if result and isinstance(result, list) and len(result) > 0:
+                        if 'result' in result[0]:
+                            return result[0]['result']
+                        elif isinstance(result[0], list):
+                            return result[0]
+                        else:
+                            return result
+                except Exception as e:
+                    print(f"第一种查询方式出错: {str(e)}")
+                
+                # 尝试第二种查询方式
+                try:
+                    print("尝试第二种查询方式...")
+                    result = await db.query(f"SELECT * FROM conversations")
+                    print(f"全表查询结果: {result}")
+                    
+                    if result and isinstance(result, list) and len(result) > 0:
+                        if 'result' in result[0]:
+                            all_conversations = result[0]['result']
+                            # 手动过滤用户ID
+                            return [conv for conv in all_conversations if conv.get('user_id') == user_id]
+                except Exception as e:
+                    print(f"第二种查询方式出错: {str(e)}")
+                
+                # 如果前两种方式都失败，尝试直接获取所有记录然后在应用层过滤
+                try:
+                    print("尝试获取所有记录...")
+                    all_records = await db.select("conversations")
+                    print(f"所有记录: {all_records}")
+                    
+                    if all_records and isinstance(all_records, list):
+                        # 手动过滤用户ID
+                        return [conv for conv in all_records if conv.get('user_id') == user_id]
+                except Exception as e:
+                    print(f"获取所有记录出错: {str(e)}")
+                
                 return []
-            
-            query_str = f"SELECT * FROM conversations WHERE user_id = '{user_id}'"
-            print(f"Direct SQL query: {query_str}")
-            result = await db.query(query_str)
-            
-            if result and result[0] and 'result' in result[0]:
-                return result[0]['result']
-            return []
+            except Exception as e:
+                print(f"_get_conversations内部错误: {str(e)}")
+                return []
         
         conversations = run_async(_get_conversations())
         
         # 打印详细的查询结果信息以便调试
-        print(f"Raw query result for user {user_id}: {conversations}")
-        
-        # 如果没有找到对话，尝试使用另一种查询方式
-        if not conversations:
-            print("No conversations found with first method, trying alternative query...")
-            
-            async def _get_conversations_alt():
-                db = await get_db()
-                if db is None:
-                    return []
-                
-                # 使用更直接的查询方式
-                result = await db.query(f"SELECT VALUE FROM conversations WHERE user_id = '{user_id}'")
-                print(f"Alternative query result: {result}")
-                
-                if result and isinstance(result, list) and len(result) > 0:
-                    return result
-                return []
-            
-            alt_conversations = run_async(_get_conversations_alt())
-            if alt_conversations:
-                conversations = alt_conversations
-                print(f"Found {len(conversations)} conversations with alternative method")
+        print(f"最终查询结果 for user {user_id}: {conversations}")
         
         # 按最后更新时间排序
         if conversations:
-            conversations.sort(key=lambda x: x.get('last_updated', ''), reverse=True)
+            try:
+                conversations.sort(key=lambda x: x.get('last_updated', ''), reverse=True)
+            except Exception as e:
+                print(f"排序错误: {str(e)}")
         
-        print(f"Returning {len(conversations)} conversations for user {user_id}")
+        print(f"返回 {len(conversations) if conversations else 0} 个对话给用户 {user_id}")
         
         return jsonify({
-            'conversations': conversations
+            'conversations': conversations or []
         }), 200
     except Exception as e:
-        print(f"Error fetching conversations: {str(e)}")
-        return jsonify({'error': 'Failed to fetch conversations'}), 500
+        print(f"获取对话列表出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'获取对话列表失败: {str(e)}'}), 500
 
 # 创建新对话
 @conversation_bp.route('', methods=['POST'])
